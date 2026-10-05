@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="cesium/Widgets/widgets.css">
+  <script src="cesium/Cesium.js"></script>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overhead clearance rather than carriageway width as the limit on the largest emergency vehicles</title>
+  <meta name="description" content="LiDAR-based emergency-vehicle accessibility mapping and routing across Indian cities, deployed via multi-city model merging." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  <!-- Page styles. src/main.ts also imports these so Vite tracks them. -->
+  <script type="module" crossorigin src="./assets/modulepreload-polyfill-B5Qt9EMX.js"></script>
+  <script type="module" crossorigin src="./assets/main-DWixZ6gI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-DakNlnGi.css">
+</head>
+<body>
+
+  <!-- ============================ HERO ============================ -->
+  <!-- Pattern: reference/surflo-page (title block + author row + link buttons + teaser). -->
+  <header class="hero">
+    <h1 class="title">Overhead clearance rather than carriageway width as the limit on the largest emergency vehicles:<br />
+      multi-city mapping from mobile laser scanning by model merging</h1>
+
+    <!-- Per-version blocks: ./build.sh replaces each "version:NAME" marker pair with the
+         same-named block from versions/(version)/blocks.html (see README.md). -->
+    <p class="authors">Author names withheld for double-blind review</p>
+    <p class="affiliations">Affiliations withheld for double-blind review</p>
+
+    <nav class="links">
+      <a class="btn" href="#" data-link="paper">📄 Paper</a>
+      <a class="btn" href="#" data-link="code">&lt;/&gt; Code</a>
+      <a class="btn" href="#bibtex" data-link="bibtex">BibTeX</a>
+      <a class="btn" href="validate.html" target="_blank" rel="noopener">🔍 Accessibility viewer</a>
+    </nav>
+
+    <figure class="teaser">
+      <!-- Slide-9 "equation": width + clearance = accessible vs blocked (GS2 deck, whylidar).
+           The width panel mirrors the deck's native TikZ drawing as inline SVG. -->
+      <div class="teaser-eq" role="img"
+           aria-label="Width constraint plus clearance constraint equals per-street accessible versus blocked map">
+        <div class="teq-panel teq-width">
+          <svg viewBox="0 0 630 260" preserveAspectRatio="xMidYMid meet"
+               aria-hidden="true" focusable="false">
+            <!-- carriageway: wide → just-fits → a pinch narrower than the vehicle (red) -->
+            <rect x="0" y="28" width="185" height="204" fill="#6b6f74"/>
+            <rect x="185" y="72" width="170" height="116" fill="#6b6f74"/>
+            <rect x="355" y="105" width="120" height="50" fill="#c21f1f"/>
+            <line x1="0" y1="130" x2="475" y2="130" stroke="#fff" stroke-width="3.2"
+                  stroke-dasharray="18 13"/>
+            <!-- ambulance, top view, sitting in the lane it still fits -->
+            <rect x="215" y="82" width="127" height="96" rx="5" fill="#fff"
+                  stroke="#3d4248" stroke-width="2.2"/>
+            <rect x="324" y="82" width="18" height="96" rx="2.5" fill="#d92626"/>
+            <rect x="295" y="95" width="23" height="70" rx="2.5" fill="#c3c7cc"/>
+            <rect x="235" y="118" width="40" height="24" rx="2" fill="#e8892e"/>
+            <rect x="228" y="170" width="30" height="16" fill="#33373c"/>
+            <rect x="228" y="74"  width="30" height="16" fill="#33373c"/>
+            <rect x="300" y="170" width="28" height="16" fill="#33373c"/>
+            <rect x="300" y="74"  width="28" height="16" fill="#33373c"/>
+            <!-- the inequality: road bar (grey, pinch height) < vehicle bar (teal) -->
+            <g stroke="#666c73" stroke-width="3.2">
+              <line x1="530" y1="105" x2="530" y2="155"/>
+              <line x1="519" y1="105" x2="541" y2="105"/><line x1="519" y1="155" x2="541" y2="155"/>
+            </g>
+            <g stroke="#2aa6b0" stroke-width="3.2">
+              <line x1="595" y1="82" x2="595" y2="178"/>
+              <line x1="584" y1="82" x2="606" y2="82"/><line x1="584" y1="178" x2="606" y2="178"/>
+            </g>
+          </svg>
+          <span class="teq-cap"><b>Width</b>: <i style="color:#2aa6b0">vehicle</i> wider than
+            <i style="color:#666c73">road</i> ⇒ <i style="color:#c21f1f">blocked</i>.
+            The <i>minimum</i> binds.</span>
+        </div>
+        <span class="teq-op" aria-hidden="true">+</span>
+        <div class="teq-panel">
+          <img src="figures/teaser_clearance.webp"
+               alt="Ambulance blocked by insufficient overhead clearance under wires" />
+          <span class="teq-cap"><b>Clearance</b>: wires cap the height</span>
+        </div>
+        <span class="teq-op" aria-hidden="true">=</span>
+        <div class="teq-panel teq-out">
+          <img src="figures/teaser_accessible_blocked.webp"
+               alt="3D street scene with streets marked accessible (green) or blocked (red)" />
+          <span class="teq-cap">Per street: <i style="color:#1f9d55"><b>accessible</b></i> vs
+            <i style="color:#c21f1f"><b>blocked</b></i>, in 3D</span>
+        </div>
+      </div>
+      <!-- Animated (SMIL) mini-demos, one vehicle per constraint: ambulance = width,
+           fire truck = clearance, aerial appliance = accessibility-aware routing. -->
+      <div class="teaser-anim">
+        <div class="ta-panel">
+          <svg viewBox="0 0 420 240" preserveAspectRatio="xMidYMid meet" role="img"
+               aria-label="Animation: an ambulance drives down a narrowing street and is blocked by a pinch narrower than itself">
+            <rect x="0" y="50" width="150" height="150" fill="#6b6f74"/>
+            <rect x="150" y="85" width="150" height="80" fill="#6b6f74"/>
+            <rect x="300" y="112" width="120" height="26" fill="#c21f1f">
+              <animate attributeName="opacity" values="1;1;0.45;1;0.45;1;1"
+                       keyTimes="0;0.5;0.58;0.66;0.74;0.82;1" dur="6s" repeatCount="indefinite"/>
+            </rect>
+            <line x1="0" y1="125" x2="420" y2="125" stroke="#fff" stroke-width="2.6"
+                  stroke-dasharray="13 10"/>
+            <!-- ambulance (top view) drives in, brakes before the pinch -->
+            <g>
+              <rect x="6"  y="-4" width="16" height="8" fill="#33373c"/>
+              <rect x="40" y="-4" width="16" height="8" fill="#33373c"/>
+              <rect x="6"  y="40" width="16" height="8" fill="#33373c"/>
+              <rect x="40" y="40" width="16" height="8" fill="#33373c"/>
+              <rect x="0" y="0" width="64" height="44" rx="4" fill="#fff" stroke="#3d4248" stroke-width="1.8"/>
+              <rect x="53" y="0" width="11" height="44" rx="2" fill="#d92626"/>
+              <rect x="40" y="6" width="10" height="32" rx="2" fill="#c3c7cc"/>
+              <rect x="12" y="14" width="18" height="16" rx="2" fill="#e8892e"/>
+              <animateTransform attributeName="transform" type="translate"
+                values="-90 103;190 103;218 103;218 103" keyTimes="0;0.38;0.5;1"
+                dur="6s" repeatCount="indefinite"/>
+            </g>
+            <g transform="translate(288,58)">
+              <rect width="110" height="26" rx="13" fill="#c21f1f"/>
+              <text x="55" y="17.5" text-anchor="middle" fill="#fff"
+                    font-family="Inter, sans-serif" font-size="13" font-weight="600">W0 · blocked</text>
+              <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.5;0.58;0.93;1"
+                       dur="6s" repeatCount="indefinite"/>
+            </g>
+          </svg>
+          <span class="ta-cap"><b>Width</b> — the pinch rates <i style="color:#c21f1f">W0</i>,
+            narrower than the ambulance (A1 instance). The <i>minimum</i> binds.</span>
+          <span class="ta-news"><b>Noida · Jul 2026</b> — 2 died in a building fire; a resident:
+            &ldquo;even an ambulance cannot pass&rdquo;.
+            <a href="https://www.ndtv.com/noida-news/2-killed-after-e-bike-catches-fire-in-noida-residential-building-11776893"
+               target="_blank" rel="noopener">NDTV&nbsp;↗</a></span>
+        </div>
+        <div class="ta-panel">
+          <svg viewBox="0 0 420 240" preserveAspectRatio="xMidYMid meet" role="img"
+               aria-label="Animation: a fire truck stops under a sagging overhead wire that is lower than the truck needs">
+            <rect x="0" y="196" width="420" height="14" fill="#6b6f74"/>
+            <rect x="40" y="50" width="7" height="146" fill="#4a4f55"/>
+            <rect x="28" y="54" width="31" height="5" fill="#4a4f55"/>
+            <rect x="373" y="50" width="7" height="146" fill="#4a4f55"/>
+            <rect x="361" y="54" width="31" height="5" fill="#4a4f55"/>
+            <path d="M 47 62 Q 210 168 376 62" fill="none" stroke="#3d4248" stroke-width="2.5"/>
+            <!-- clearance dimension at the sag -->
+            <line x1="228" y1="196" x2="228" y2="118" stroke="#2aa6b0" stroke-width="1.6"
+                  stroke-dasharray="5 4"/>
+            <text x="236" y="152" fill="#2aa6b0" font-family="Inter, sans-serif"
+                  font-size="13" font-weight="650">3.4 m</text>
+            <!-- fire truck (side view) drives in, stops as the ladder meets the wire -->
+            <g>
+              <rect x="-2" y="2" width="96" height="7" rx="2" fill="#767d86"/>
+              <line x1="0" y1="5.5" x2="92" y2="5.5" stroke="#e6e9ec" stroke-width="4" stroke-dasharray="3 7"/>
+              <rect x="0" y="30" width="110" height="44" rx="3" fill="#c21f1f"/>
+              <rect x="86" y="10" width="24" height="64" rx="3" fill="#d92626"/>
+              <rect x="92" y="16" width="14" height="18" rx="2" fill="#bcd7e8"/>
+              <rect x="8" y="38" width="66" height="20" rx="2" fill="#e8e2d8" opacity="0.35"/>
+              <circle cx="24" cy="78" r="12" fill="#33373c"/><circle cx="24" cy="78" r="5" fill="#9aa1a9"/>
+              <circle cx="82" cy="78" r="12" fill="#33373c"/><circle cx="82" cy="78" r="5" fill="#9aa1a9"/>
+              <animateTransform attributeName="transform" type="translate"
+                values="-140 108;50 108;79 108;79 108" keyTimes="0;0.38;0.5;1"
+                dur="6s" repeatCount="indefinite"/>
+            </g>
+            <!-- collision flash where the ladder tip meets the wire -->
+            <g transform="translate(173,112)">
+              <circle r="11" fill="none" stroke="#e0584a" stroke-width="3"/>
+              <path d="M -5 -5 L 5 5 M -5 5 L 5 -5" stroke="#e0584a" stroke-width="3"/>
+              <animate attributeName="opacity" values="0;0;1;0.15;1;0.15;1;0"
+                       keyTimes="0;0.5;0.56;0.64;0.72;0.8;0.88;1" dur="6s" repeatCount="indefinite"/>
+            </g>
+            <g transform="translate(86,28)">
+              <rect width="222" height="26" rx="13" fill="#c78a1e"/>
+              <text x="111" y="17.5" text-anchor="middle" fill="#fff"
+                    font-family="Inter, sans-serif" font-size="13" font-weight="600">H1 wire · fire truck needs ≥ 3.8 m</text>
+              <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.5;0.58;0.93;1"
+                       dur="6s" repeatCount="indefinite"/>
+            </g>
+          </svg>
+          <span class="ta-cap"><b>Clearance</b> — a 3.4 m wire rates
+            <i style="color:#c78a1e">H1</i>, below the H2 band the fire truck (A2 instance)
+            needs. Wires cap the height.</span>
+          <span class="ta-news"><b>Delhi, Hauz Rani · Jun 2026</b> — 21 died; narrow lanes kept
+            the fire tenders out.
+            <a href="https://www.dnpindia.in/states/delhi-fire-horror-aging-buildings-narrow-lanes-rules-flouted-and-years-of-safety-neglect-add-up-to-hauz-rani-disaster-check/604795/"
+               target="_blank" rel="noopener">DNP&nbsp;India&nbsp;↗</a> ·
+            <a href="https://www.aljazeera.com/gallery/2026/6/3/foreign-nationals-among-21-dead-in-new-delhi-building-fire"
+               target="_blank" rel="noopener">Al&nbsp;Jazeera&nbsp;↗</a></span>
+        </div>
+        <div class="ta-panel">
+          <svg viewBox="0 0 420 240" preserveAspectRatio="xMidYMid meet" role="img"
+               aria-label="Animation: the fastest path crosses a blocked street, so the aerial appliance detours along the accessible route">
+            <!-- street grid coloured by class (soft backdrop) -->
+            <g stroke-linecap="round" stroke-width="9" fill="none">
+              <path d="M 20 200 H 400" stroke="#8fcf9f"/>
+              <path d="M 20 120 H 200" stroke="#8fcf9f"/>
+              <path d="M 60 40 H 400" stroke="#8fcf9f"/>
+              <path d="M 60 40 V 200" stroke="#8fcf9f"/>
+              <path d="M 200 40 V 200" stroke="#8fcf9f"/>
+              <path d="M 340 40 V 120" stroke="#e3c48a"/>
+              <path d="M 340 120 V 200" stroke="#e3c48a"/>
+              <path d="M 200 120 H 340" stroke="#eaa79f"/>
+            </g>
+            <!-- blocked segment pulses -->
+            <path d="M 200 120 H 340" stroke="#e0584a" stroke-width="9" stroke-linecap="round" fill="none">
+              <animate attributeName="opacity" values="0;0;1;0.25;1;0.25;1;1;0"
+                       keyTimes="0;0.13;0.18;0.24;0.3;0.36;0.42;0.9;1" dur="8s" repeatCount="indefinite"/>
+            </path>
+            <!-- fastest (free) path: dashed, crosses the blocked street -->
+            <path d="M 60 200 H 200 V 120 H 340 V 40" fill="none" stroke="#f59e0b"
+                  stroke-width="3.5" stroke-dasharray="6 6">
+              <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.05;0.12;0.9;1"
+                       dur="8s" repeatCount="indefinite"/>
+            </path>
+            <!-- accessible A3 route draws in, then the appliance drives it -->
+            <path id="ta3-route" d="M 60 200 V 120 H 200 V 40 H 340" fill="none" stroke="#22c55e"
+                  stroke-width="13" stroke-linecap="round" opacity="0.25" pathLength="100"
+                  stroke-dasharray="100" stroke-dashoffset="100">
+              <animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="0;0.18;0.34;1"
+                       dur="8s" repeatCount="indefinite"/>
+            </path>
+            <path d="M 60 200 V 120 H 200 V 40 H 340" fill="none" stroke="#22c55e"
+                  stroke-width="5" stroke-linecap="round" pathLength="100"
+                  stroke-dasharray="100" stroke-dashoffset="100">
+              <animate attributeName="stroke-dashoffset" values="100;100;0;0" keyTimes="0;0.18;0.34;1"
+                       dur="8s" repeatCount="indefinite"/>
+            </path>
+            <!-- origin / destination -->
+            <circle cx="60" cy="200" r="8" fill="#1c2430" stroke="#fff" stroke-width="2.5"/>
+            <text x="60" y="228" text-anchor="middle" fill="#1c2430" font-family="Inter, sans-serif"
+                  font-size="13" font-weight="700">A</text>
+            <circle cx="340" cy="40" r="8" fill="#b3122a" stroke="#fff" stroke-width="2.5"/>
+            <text x="340" y="24" text-anchor="middle" fill="#b3122a" font-family="Inter, sans-serif"
+                  font-size="13" font-weight="700">B</text>
+            <!-- aerial appliance (top view) rides the accessible route -->
+            <g opacity="0">
+              <rect x="-16" y="-8" width="32" height="16" rx="3" fill="#fff" stroke="#3d4248" stroke-width="1.6"/>
+              <rect x="11" y="-8" width="5" height="16" rx="1.5" fill="#d92626"/>
+              <rect x="-13" y="-2.5" width="21" height="5" rx="1.5" fill="#8a9099"/>
+              <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.36;0.4;0.9;1"
+                       dur="8s" repeatCount="indefinite"/>
+              <animateMotion dur="8s" repeatCount="indefinite" rotate="auto" calcMode="linear"
+                             keyPoints="0;0;1;1" keyTimes="0;0.4;0.86;1">
+                <mpath href="#ta3-route"/>
+              </animateMotion>
+            </g>
+            <g transform="translate(216,196)">
+              <rect width="188" height="26" rx="13" fill="#22c55e"/>
+              <text x="94" y="17.5" text-anchor="middle" fill="#fff"
+                    font-family="Inter, sans-serif" font-size="13" font-weight="600">A3 route · aerial appliance</text>
+              <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.38;0.44;0.93;1"
+                       dur="8s" repeatCount="indefinite"/>
+            </g>
+          </svg>
+          <span class="ta-cap"><b>Routing</b> — the fastest path crosses a
+            <i style="color:#e0584a">blocked</i> street; the
+            <i style="color:#1f9d55">A3 route</i> detours along accessible segments only
+            (aerial appliance, A3 instance).</span>
+          <span class="ta-news"><b>DRDO · Jun 2026</b> — a bike ambulance, designed for lanes
+            ambulances cannot enter.
+            <a href="https://www.etvbharat.com/en/technology/drdo-design-bike-ambulance-for-narrow-ways-and-disaster-management-purpose-know-about-its-features-enn26062603355"
+               target="_blank" rel="noopener">ETV&nbsp;Bharat&nbsp;↗</a></span>
+        </div>
+      </div>
+      <figcaption>Emergency-vehicle accessibility is governed by horizontal (road width) and
+        vertical (overhead clearance) constraints invisible to 2D navigation — all captured
+        directly in 3D mobile-LiDAR point clouds.</figcaption>
+    </figure>
+  </header>
+
+  <main>
+    <!-- ============================ VIDEO ============================ -->
+    <!-- Pattern: pointcept.github.io/Utonia (a video section above the abstract). The file is
+         built by docs/paper/accessibility/video/ (README there); public/video/ is gitignored
+         like the clouds, the poster is a title-card render (deploy_profile.json photo_free). -->
+    <section id="video" class="prose wide video-sec">
+      <h2>Video</h2>
+      <p class="video-desc">A four-minute overview of the paper: the three surveyed sites,
+        foundation-model segmentation and cross-city model merging, carriageway width and overhead
+        clearance measured at every road station, the per-vehicle accessibility shares, and
+        accessibility-gated routing on the Bhopal network. Every visual is the system's own output
+        on real mobile-LiDAR survey data; narration is synthesised.</p>
+      <div class="video-wrapper">
+        <video controls autoplay muted loop playsinline preload="metadata"
+               poster="video/accessibility_overview_poster.webp"
+               aria-label="Overview video of the paper">
+          <source src="video/accessibility_overview.mp4" type="video/mp4">
+          Your browser does not play MP4 video; the file is at
+          <a href="video/accessibility_overview.mp4">video/accessibility_overview.mp4</a>.
+        </video>
+      </div>
+    </section>
+
+    <!-- ========================== ABSTRACT ========================== -->
+    <section id="abstract" class="prose wide">
+      <h2>Abstract</h2>
+      <p>Emergency-vehicle access in Indian cities is limited by narrow roads and overhead
+        obstructions invisible to 2D navigation. We segment mobile-LiDAR clouds with 3D foundation
+        models (<b>Sonata</b>, <b>Concerto</b>, <b>Utonia</b>), measure effective width and overhead
+        clearance per road section, fuse them into <b>accessibility classes</b>, and route
+        accessibility-aware across Bhopal, Kerala, and Chandigarh. Because point clouds face
+        data-sharing restrictions while model <i>weights</i> do not, cities share models, not data:
+        <b>task-vector merging</b> builds one deployable encoder per city, with no joint
+        retraining.</p>
+    </section>
+
+    <!-- ====================== CONTRIBUTIONS ======================= -->
+    <section id="contributions" class="prose wide">
+      <h2>Contributions</h2>
+      <ol class="cards">
+        <li><h3>3D accessibility mapping</h3>
+          Road width <em>and</em> overhead clearance, measured jointly from
+          foundation-model-segmented mobile LiDAR.</li>
+        <li><h3>Model merging as deployment</h3>
+          Cities share models, not data; the merged encoder deployed per city stays within 5 mIoU of city-specific fine-tuning.</li>
+        <li><h3>Accessibility-aware navigation</h3>
+          Shortest vs fastest vs accessible routes, and the detours physical
+          constraints impose.</li>
+      </ol>
+    </section>
+
+    <!-- ========================= METHOD =========================== -->
+    <section id="method" class="prose wide">
+      <h2>Method</h2>
+      <figure><img src="figures/study_areas.svg" loading="lazy" alt="Study areas: Bhopal, Kerala, Chandigarh" />
+        <figcaption>Three Indian urban typologies — Bhopal (dense historical core), Kerala
+          (vegetated semi-urban), Chandigarh (planned grid).</figcaption></figure>
+
+      <!-- ===== Methodology overview: Raw -> Segmentation -> Accessibility pipeline -> Routing ===== -->
+      <figure class="method-overview" style="margin:2rem 0">
+        <img src="figures/method_overview.svg" loading="lazy" alt="Methodology overview in four parts" />
+      </figure>
+
+      <h3 style="margin-top:2rem">Robust geometric measurement</h3>
+      <p class="muted">Width and clearance are read <b>directly from the segmented points</b> by
+        two independent pipelines that fuse only at the end — one ruler everywhere
+        (the <b>occupancy-bin robust cross-section</b>), reported <b>conservatively</b>, because
+        accessibility binds on the tightest point.</p>
+
+      <!-- ===== Pipeline flow diagrams (mirror the deployed step_02..step_08 code) ===== -->
+      <div class="pipe">
+        <div class="pipe-head"><h4>&#9312; Carriageway width</h4>
+          <span class="pipe-tag">horizontal constraint &middot; measured from the segmented road points</span></div>
+        <div class="flow">
+          <div class="fnode"><div class="fn-n">1 &middot; CLEAN</div><div class="fn-t">Point cleaning (deployment only)</div>
+            <div class="fn-d">Three detach-guarded passes; survey GT stays raw.</div></div>
+          <div class="fnode"><div class="fn-n">2 &middot; BOUNDARY</div><div class="fn-t">Class-aware outline</div>
+            <div class="fn-d">&alpha;-hull + class-aware holes; a median splits divided roads
+              (GT&nbsp;IoU&nbsp;0.965).</div></div>
+          <div class="fnode"><div class="fn-n">3 &middot; CENTERLINE</div><div class="fn-t">Point-based spine</div>
+            <div class="fn-d">Occupancy-raster topology; routable <b>main spine</b> vs
+              <b>branch</b> arms.</div></div>
+          <div class="fnode is-key"><div class="fn-n">4 &middot; JUNCTIONS</div>
+            <div class="fn-t">Orientation-field detection&nbsp;+&nbsp;typing</div>
+            <div class="fn-d">Found and typed from the road director field; interiors masked.</div></div>
+          <div class="fnode"><div class="fn-n">5 &middot; WIDTH</div><div class="fn-t">One-ruler per-station width</div>
+            <div class="fn-d">Robust cross-section per station; branch arms &amp; leaf tips =
+              <b>WU</b>, never a block, never routed.</div></div>
+        </div>
+        <div class="subflow">
+          <div class="sf-lab">Step&nbsp;4 &mdash; orientation-field junction detection &amp; typing</div>
+          <div class="sf-row">
+            <span class="sf-step">Local-PCA director field&nbsp;&theta;</span><span class="sf-arrow">&rarr;</span>
+            <span class="sf-step">Stick saliency + multi-scale nematic order&nbsp;&#8475;&nbsp;(1&minus;&#8475;)</span><span class="sf-arrow">&rarr;</span>
+            <span class="sf-step">Poincar&eacute; charge&nbsp;q&nbsp;(&plusmn;&frac12; = T/Y, &plusmn;1 = 4-way / rotary)</span><span class="sf-arrow">&rarr;</span>
+            <span class="sf-step">Confirm &ge;&nbsp;3 road arms</span><span class="sf-arrow">&rarr;</span>
+            <span class="sf-step">Type: T/Y &middot; + &middot; X &middot; rotary, template-refined</span>
+          </div>
+        </div>
+        <div class="pipe-out"><span class="arrow">&rarr;</span> binned to the width class
+          <span class="chip"><span class="dot" style="background:#e0584a"></span>W0</span>
+          <span class="chip"><span class="dot" style="background:#e8a33d"></span>W1</span>
+          <span class="chip"><span class="dot" style="background:#3fb950"></span>W2</span>
+          <span class="chip"><span class="dot" style="background:#2aa6b0"></span>W3</span>
+          <span class="chip"><span class="dot" style="background:#58a6ff"></span>W4</span>
+          <span class="chip"><span class="dot" style="background:#9aa0a8"></span>WU</span>
+        </div>
+      </div>
+
+      <div class="pipe">
+        <div class="pipe-head"><h4>&#9313; Overhead clearance</h4>
+          <span class="pipe-tag">vertical constraint &middot; measured from the above-road points</span></div>
+        <div class="flow">
+          <div class="fnode"><div class="fn-n">1 &middot; DATUM</div><div class="fn-t">Road-surface datum</div>
+            <div class="fn-d">Per-station ground plane — the reference for every clearance.</div></div>
+          <div class="fnode"><div class="fn-n">2 &middot; STREAMS</div><div class="fn-t">Semantic streams</div>
+            <div class="fn-d">Wire &middot; vegetation &middot; structure &middot; catch-all;
+              buildings never bind.</div></div>
+          <div class="fnode"><div class="fn-n">3 &middot; GATHER</div><div class="fn-t">Road-aligned box</div>
+            <div class="fn-d">&plusmn;1.5&nbsp;m slab <b>clipped to the carriageway</b>; one cylinder
+              per junction.</div></div>
+          <div class="fnode"><div class="fn-n">4 &middot; ISOLATION</div><div class="fn-t">Outlier filter</div>
+            <div class="fn-d">&gt;&nbsp;2 neighbours in 0.8&nbsp;m &mdash; drops birds, dust,
+              single-beam ghosts.</div></div>
+          <div class="fnode"><div class="fn-n">5 &middot; PER-STREAM</div><div class="fn-t">Stream clearance</div>
+            <div class="fn-d">5th-percentile height; wires add a catenary sag fit.</div></div>
+        </div>
+        <div class="subflow" style="border-style:solid">
+          <div class="sf-lab">Step&nbsp;6 &mdash; binding clearance</div>
+          <div class="sf-row">
+            <span class="sf-step"><b>&gamma; = min(wire, vegetation)</b></span>
+            <span style="color:var(--muted)">structure &amp; catch-all stay as separate flags; every
+              reading records its responsible class + evidence count (<b>bind_n</b>)</span>
+          </div>
+        </div>
+        <div class="pipe-out"><span class="arrow">&rarr;</span> binned to the clearance class
+          <span class="chip"><span class="dot" style="background:#e0584a"></span>H0</span>
+          <span class="chip"><span class="dot" style="background:#e8a33d"></span>H1</span>
+          <span class="chip"><span class="dot" style="background:#2aa6b0"></span>H2</span>
+          <span class="chip"><span class="dot" style="background:#3fb950"></span>H3</span>
+        </div>
+      </div>
+
+      <h3 id="standards" class="standards-heading">Standards-based road classification</h3>
+      <div class="standards-intro">
+        <p class="standards-lead">Classify the road first; map vehicles second.</p>
+        <p>Every 1.5&nbsp;m section gets a <b>width class</b> (IRC lane standards) and a
+          <b>clearance class</b> (IRC/CMVR limits), fused conservatively into one accessibility
+          class. Vehicles are operating levels on this scale, not inputs.</p>
+        <div class="standards-formula" aria-label="Width and clearance classes fuse into an accessibility class">
+          <div class="standard-stage">
+            <span class="stage-number">01 · Horizontal</span>
+            <strong>Width class</strong>
+            <span>W0&ndash;W4 <small>· WU if uncertain</small></span>
+          </div>
+          <span class="standard-operator" aria-hidden="true">+</span>
+          <div class="standard-stage">
+            <span class="stage-number">02 · Vertical</span>
+            <strong>Clearance class</strong>
+            <span>H0&ndash;H3</span>
+          </div>
+          <span class="standard-operator is-arrow" aria-hidden="true">→</span>
+          <div class="standard-stage is-output">
+            <span class="stage-number">03 · Fused decision</span>
+            <strong>Accessibility class</strong>
+            <span>A0&ndash;A3 <small>· AU if width uncertain</small></span>
+          </div>
+        </div>
+        <div class="vehicle-levels" aria-label="Emergency vehicle operating levels">
+          <span><b>Ambulance</b> ≥ W1 / H1</span>
+          <span><b>Fire &amp; ladder</b> ≥ W2 / H2</span>
+          <span><b>Strict IRC road</b> ≥ W2 / H3</span>
+          <span><b>Aerial setup</b> additionally requires W4</span>
+        </div>
+      </div>
+      <div class="tiers">
+        <div class="tier-card">
+          <div class="tier-kicker">Input 01 · Horizontal constraint</div>
+          <div class="tier-title">Carriageway width <span>W0&ndash;W4</span></div>
+          <table class="tier-table">
+            <tr><th>Class</th><th>Range</th><th>Vehicle</th></tr>
+            <tr><td><span class="swatch" style="background:#e0584a"></span>W0 sub-access</td><td>&lt; 3.0 m</td><td>—</td></tr>
+            <tr><td><span class="swatch" style="background:#e8a33d"></span>W1 access-lane</td><td>3.0–3.5 m</td><td>ambulance</td></tr>
+            <tr><td><span class="swatch" style="background:#3fb950"></span>W2 single-lane</td><td>3.5–5.5 m</td><td>fire, ladder</td></tr>
+            <tr><td><span class="swatch" style="background:#2aa6b0"></span>W3 intermediate</td><td>5.5–7.0 m</td><td>—</td></tr>
+            <tr><td><span class="swatch" style="background:#58a6ff"></span>W4 two-lane+</td><td>≥ 7.0 m</td><td>aerial setup</td></tr>
+            <tr><td><span class="swatch" style="background:#9aa0a8"></span>WU uncertain</td><td>branch / tip one-sided evidence · not routed</td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="tier-card">
+          <div class="tier-kicker">Input 02 · Vertical constraint</div>
+          <div class="tier-title">Vertical clearance <span>H0&ndash;H3</span></div>
+          <table class="tier-table">
+            <tr><th>Class</th><th>Range</th><th>Vehicle</th></tr>
+            <tr><td><span class="swatch" style="background:#e0584a"></span>H0 sub-vehicle</td><td>&lt; 2.8 m</td><td>—</td></tr>
+            <tr><td><span class="swatch" style="background:#e8a33d"></span>H1 below-cap</td><td>2.8–3.8 m</td><td>ambulance</td></tr>
+            <tr><td><span class="swatch" style="background:#2aa6b0"></span>H2 truck-band</td><td>3.8–5.0 m</td><td>fire, ladder</td></tr>
+            <tr><td><span class="swatch" style="background:#3fb950"></span>H3 IRC-clear</td><td>≥ 5.0 m</td><td>—</td></tr>
+          </table>
+        </div>
+        <div class="tier-card tier-card-output">
+          <div class="tier-kicker">Output · Conservative fusion</div>
+          <div class="tier-title">Accessibility class <span>width × clearance</span></div>
+          <table class="tier-table">
+            <tr><th>Class</th><th>Requires</th><th>Vehicle</th></tr>
+            <tr><td><span class="swatch" style="background:#e0584a"></span>A0 inaccessible</td><td>W0 or H0</td><td>—</td></tr>
+            <tr><td><span class="swatch" style="background:#e8a33d"></span>A1 access lane</td><td>≥ W1 and ≥ H1</td><td>ambulance</td></tr>
+            <tr><td><span class="swatch" style="background:#2aa6b0"></span>A2 single-lane</td><td>≥ W2 and ≥ H2</td><td>fire, ladder</td></tr>
+            <tr><td><span class="swatch" style="background:#3fb950"></span>A3 full IRC</td><td>≥ W2 and H3</td><td>strict IRC road; aerial setup also needs W4</td></tr>
+            <tr><td><span class="swatch" style="background:#9aa0a8"></span>AU uncertain</td><td>width WU or unmeasured — unless H0 (a measured overhang stays A0)</td><td>— · excluded from routing</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== Combined accessibility fusion (width class x clearance class -> A0..A3) ===== -->
+      <div class="pipe">
+        <div class="pipe-head"><h4>&#9314; Accessibility class = width &times; clearance</h4>
+          <span class="pipe-tag">the two pipelines fuse per 1.5&nbsp;m road section</span></div>
+        <div class="fuse">
+          <div class="ftrack">
+            <div class="fin"><div class="fin-t">&#9312; Carriageway width</div>
+              <div class="fin-d">&rarr; class <b>W0&ndash;W4</b> &middot; narrowest in the window</div></div>
+            <div class="fin"><div class="fin-t">&#9313; Overhead clearance</div>
+              <div class="fin-d">&rarr; class <b>H0&ndash;H3</b> &middot; lowest in the window</div></div>
+          </div>
+          <div class="fmerge">
+            <div class="fm-box">Fuse each<br />section</div>
+            <div class="fm-sub">conservative:<br />min width, min clearance</div>
+          </div>
+          <div class="fout">
+            <div class="arow"><span class="chip"><span class="dot" style="background:#e0584a"></span>A0</span>
+              <span class="rule">W0 <b>or</b> H0 &mdash; inaccessible</span></div>
+            <div class="arow"><span class="chip"><span class="dot" style="background:#e8a33d"></span>A1</span>
+              <span class="rule">&ge;W1 <b>and</b> &ge;H1 &mdash; ambulance</span></div>
+            <div class="arow"><span class="chip"><span class="dot" style="background:#2aa6b0"></span>A2</span>
+              <span class="rule">&ge;W2 <b>and</b> &ge;H2 &mdash; fire, ladder</span></div>
+            <div class="arow"><span class="chip"><span class="dot" style="background:#3fb950"></span>A3</span>
+              <span class="rule">&ge;W2 <b>and</b> H3 &mdash; strict IRC road</span></div>
+            <div class="arow"><span class="chip"><span class="dot" style="background:#9aa0a8"></span>AU</span>
+              <span class="rule">width uncertain (WU) &mdash; honest gray, never routed; a measured H0 overhang still forces A0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="tier-note">Sources: IRC&nbsp;86-2018 (lane widths), IRC&nbsp;54-1974 (road clearance),
+        IRC&nbsp;32-1969 (overhead wires), CMVR&nbsp;Rule&nbsp;93 (vehicle dimensions),
+        IFC&nbsp;2021&nbsp;D105 (aerial setup).</p>
+    </section>
+
+    <!-- ============== INTERACTIVE 3D CLOUD VIEWER ================= -->
+    <!-- Pattern: reference/surflo-page (Three.js PLYLoader + OrbitControls; normal-shading toggle).
+         src/viewer/PlyViewer.ts hydrates #ply-viewer; cards come from src/data/scenes.ts. -->
+    <section id="viewer" class="prose wide">
+      <h2>Explore the classified scenes</h2>
+      <p class="muted">Three classified ~30&nbsp;m segments per city. 🎨 class colors&nbsp;↔ RGB ·
+        👆 identify a clicked point · 📏 measure a distance · 🌑 depth shading · ⛶ full screen.</p>
+      <div id="ply-viewer" class="viewer-mount"></div>
+      <div id="viewer-bar" class="viewer-bar map-toolbar"><!-- toolbar injected by Gallery.ts --></div>
+      <div id="viewer-legend" class="class-legend"><!-- per-scene classes injected by Gallery.ts --></div>
+      <div id="scene-gallery" class="gallery gallery-cities"><!-- city cards injected by Gallery.ts --></div>
+    </section>
+
+    <!-- ========================= RESULTS ========================== -->
+    <!-- Figures and tables are the paper's, with its numbering (ISPRS manuscript). Figures are
+         copied from docs/paper/accessibility/shared/figures/ and table bodies re-typeset from its
+         .tex; `python3 scripts/sync_paper_results.py` re-copies the figures and fails if any table
+         number or caption fact has drifted from the paper. Edit the paper, then re-sync. -->
+    <section id="results" class="prose wide">
+      <h2>Results</h2>
+      <p class="muted">Figures and tables as they appear in the paper, with the paper's numbering.
+        The deployment recipe first, then what it deploys: how much of each network every
+        accessibility class can use, and the evidence behind each clearance reading.</p>
+      <div class="results-grid">
+
+        <figure id="res-transfer">
+          <img src="figures/paper/fig15_cross_region_transfer.svg" loading="lazy"
+               alt="Cross-region transfer for Utonia: in-domain, Bhopal-source and target-source mIoU on Kerala, Toronto-3D, Paris-Lille-3D and SemanticKITTI" />
+          <div class="table-scroll">
+            <table class="paper-table" data-paper-table="tab_cross_region"
+                   aria-label="Cross-region generalization of Sonata, Concerto and Utonia: OA, mAcc and mIoU per source and target dataset">
+              <thead>
+                <tr><th rowspan="2">Source → Target</th><th rowspan="2"><i>n</i><sub>c</sub></th>
+                  <th colspan="3">Sonata</th><th colspan="3">Concerto</th><th colspan="3">Utonia</th></tr>
+                <tr class="sub"><th>OA</th><th>mAcc</th><th>mIoU</th><th>OA</th><th>mAcc</th><th>mIoU</th><th>OA</th><th>mAcc</th><th>mIoU</th></tr>
+              </thead>
+              <tbody>
+                <tr class="grp"><td colspan="11">Within-domain</td></tr>
+                <tr><td>BM → BM</td><td>12</td><td>92.12</td><td>83.30</td><td>68.72</td><td>93.42</td><td>80.44</td><td>71.06</td><td>92.69</td><td>83.89</td><td>71.28</td></tr>
+                <tr><td>KM → KM</td><td>12</td><td>93.87</td><td>76.97</td><td>67.52</td><td>92.40</td><td>74.79</td><td>67.58</td><td>92.82</td><td>77.05</td><td>66.66</td></tr>
+                <tr><td>CH → CH</td><td>12</td><td>95.89</td><td>83.52</td><td>79.60</td><td>95.80</td><td>83.83</td><td>79.92</td><td>96.36</td><td>84.58</td><td>79.76</td></tr>
+                <tr><td>TR → TR</td><td>7</td><td>98.97</td><td>92.67</td><td>86.80</td><td>99.03</td><td>93.25</td><td>86.96</td><td>99.12</td><td>93.25</td><td>88.38</td></tr>
+                <tr><td>PL → PL</td><td>11</td><td>94.25</td><td>91.16</td><td>83.63</td><td>94.14</td><td>92.03</td><td>83.43</td><td>94.89</td><td>92.11</td><td>84.77</td></tr>
+                <tr><td>SK → SK</td><td>9</td><td>92.17</td><td>83.01</td><td>75.62</td><td>92.47</td><td>83.67</td><td>75.09</td><td>92.69</td><td>84.86</td><td>77.14</td></tr>
+                <tr class="grp"><td colspan="11">Intra-Indian</td></tr>
+                <tr class="bm-src"><td>BM → KM</td><td>12</td><td>77.53</td><td>71.27</td><td><b>49.32</b></td><td>75.40</td><td>66.43</td><td><b>49.23</b></td><td>80.99</td><td>74.94</td><td><b>56.78</b></td></tr>
+                <tr class="tgt-src"><td>KM → BM</td><td>12</td><td>77.82</td><td>54.05</td><td>34.01</td><td>76.11</td><td>51.29</td><td>32.70</td><td>78.77</td><td>53.90</td><td>33.96</td></tr>
+                <tr class="bm-src"><td>BM → CH</td><td>12</td><td>79.89</td><td>61.55</td><td><b>50.08</b></td><td>76.60</td><td>58.45</td><td><b>48.49</b></td><td>82.97</td><td>64.32</td><td><b>53.64</b></td></tr>
+                <tr class="tgt-src"><td>CH → BM</td><td>12</td><td>77.55</td><td>52.57</td><td>37.57</td><td>84.75</td><td>58.17</td><td>45.09</td><td>82.84</td><td>56.89</td><td>43.43</td></tr>
+                <tr class="grp"><td colspan="11">Intra-Indian (same sensor)</td></tr>
+                <tr><td>KM → CH</td><td>12</td><td>81.97</td><td>59.48</td><td>52.61</td><td>80.29</td><td>61.61</td><td>54.28</td><td>81.13</td><td>63.91</td><td>56.58</td></tr>
+                <tr><td>CH → KM</td><td>12</td><td>91.63</td><td>74.82</td><td><b>64.42</b></td><td>91.87</td><td>74.11</td><td><b>64.14</b></td><td>90.83</td><td>78.40</td><td><b>65.39</b></td></tr>
+                <tr class="grp"><td colspan="11">Inter-region</td></tr>
+                <tr class="bm-src"><td>BM → TR</td><td>7</td><td>91.97</td><td>84.62</td><td><b>70.38</b></td><td>94.99</td><td>84.67</td><td><b>75.20</b></td><td>92.95</td><td>90.36</td><td><b>77.27</b></td></tr>
+                <tr class="tgt-src"><td>TR → BM</td><td>7</td><td>76.78</td><td>46.45</td><td>37.07</td><td>77.04</td><td>49.52</td><td>39.11</td><td>83.72</td><td>60.66</td><td>51.65</td></tr>
+                <tr class="bm-src"><td>BM → PL</td><td>11</td><td>84.62</td><td>69.52</td><td><b>50.10</b></td><td>82.61</td><td>67.55</td><td><b>48.84</b></td><td>85.54</td><td>76.95</td><td><b>55.68</b></td></tr>
+                <tr class="tgt-src"><td>PL → BM</td><td>11</td><td>67.05</td><td>44.11</td><td>26.29</td><td>73.52</td><td>45.85</td><td>31.07</td><td>72.38</td><td>40.42</td><td>27.06</td></tr>
+                <tr class="bm-src"><td>BM → SK</td><td>9</td><td>55.36</td><td>47.67</td><td><b>29.51</b></td><td>53.61</td><td>47.23</td><td><b>32.07</b></td><td>64.01</td><td>57.88</td><td><b>40.05</b></td></tr>
+                <tr class="tgt-src"><td>SK → BM</td><td>9</td><td>44.43</td><td>36.98</td><td>11.40</td><td>50.18</td><td>27.89</td><td>12.29</td><td>77.04</td><td>55.28</td><td>35.54</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption><b>No single city is a safe source model.</b>
+            <span class="paper-ref">Paper Figure 15 and Table 3.</span>
+            Cross-region transfer is severely asymmetric. In the figure (Utonia, FT-9ch), in-domain
+            fine-tuning (grey) is the ceiling for each target; a Bhopal-source model (green, BM→X)
+            generalizes outward far better than a target-source model generalizes into Bhopal
+            (red, X→BM), and the Bhopal-source direction wins every pair. The table gives all three
+            backbones (FT-9ch, native resolution) across BhopalMLS (BM), Ke-MLS (KM), ChandigarhMLS
+            (CH), Toronto-3D (TR), Paris-Lille-3D (PL) and SemanticKITTI (SK); <i>n</i><sub>c</sub> is
+            the number of classes shared with the BM-12 taxonomy, and KM and CH are geometry-only
+            (no RGB). Green rows are BM-source, red rows target-source, and bold mIoU marks the higher
+            of each asymmetry pair. The KM↔CH pair, which shares a scanner model (Riegl VQ-450), is
+            asymmetric as well: CH→KM lands within 1.3–3.4 mIoU of the KM ceiling, while KM→CH falls
+            23.2–27.0 below the CH ceiling. About half of that gap sits in two classes the KM-trained
+            models segment poorly even on KM, so class coverage contributes to the asymmetry as much as
+            urban form.</figcaption>
+        </figure>
+
+        <figure id="res-merge">
+          <img src="figures/paper/fig06_model_merging.svg" loading="lazy"
+               alt="Multi-city model merging: (a) task vectors from a shared base in one low-loss basin and the merged encoder; (b) encoder-only deployment with a target-city segmentation head" />
+          <div class="table-scroll">
+            <table class="paper-table" data-paper-table="tab_merging_deploy"
+                   aria-label="Per-city deployment of merged encoders: merged mIoU, fine-tuning baseline and difference per city">
+              <thead>
+                <tr><th rowspan="2">Model</th><th colspan="3">Bhopal</th><th colspan="3">Kerala</th><th colspan="3">Chandigarh</th></tr>
+                <tr class="sub"><th>Merged</th><th>FT</th><th>Δ</th><th>Merged</th><th>FT</th><th>Δ</th><th>Merged</th><th>FT</th><th>Δ</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Sonata</td><td>65.03</td><td>68.72</td><td>−3.69</td><td>68.55</td><td>67.37</td><td><b>+1.18</b></td><td>79.46</td><td>79.50</td><td>−0.04</td></tr>
+                <tr><td>Concerto(O)<sup>†</sup></td><td>68.74</td><td>68.10</td><td><b>+0.64</b></td><td>66.63</td><td>63.57</td><td><b>+3.06</b></td><td>78.61</td><td>78.88</td><td>−0.27</td></tr>
+                <tr><td>Utonia</td><td>70.66</td><td>71.28</td><td>−0.62</td><td>68.14</td><td>66.35</td><td><b>+1.79</b></td><td>79.84</td><td>79.66</td><td><b>+0.18</b></td></tr>
+                <tr><td>Utonia universal (one encoder)</td><td>61.21</td><td>71.28</td><td>−10.07</td><td>68.04</td><td>66.35</td><td><b>+1.69</b></td><td>78.61</td><td>79.66</td><td>−1.05</td></tr>
+                <tr class="sep"><td>Utonia joint (BKC)</td><td>69.80</td><td>71.28</td><td>−1.48</td><td>75.73</td><td>66.35</td><td><b>+9.38</b></td><td>80.62</td><td>79.66</td><td><b>+0.96</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption><b>Merge once, deploy per city.</b>
+            <span class="paper-ref">Paper Figure 6 and Table 4.</span>
+            (a) Fine-tuning moves the shared base θ<sub>0</sub> within one low-loss basin; the moves are
+            the task vectors, and the merged encoder θ<sup>★</sup> is the tip of the combined step.
+            (b) Only the encoder is merged: each target city re-attaches its own segmentation head, and
+            no raw point cloud moves between cities. For each backbone and target city the table ships
+            the best merged configuration: Merged is its mIoU (%), FT the within-domain fine-tuning
+            baseline, Δ = Merged − FT, and bold Δ matches or beats fine-tuning. Utonia reaches parity on Bhopal (−0.62)
+            while beating fine-tuning on Kerala (+1.79) and Chandigarh (+0.18); Sonata, which lacks a
+            Bhopal-weighted cell, still trails Bhopal fine-tuning by 3.7 pp. The universal row is one
+            Utonia encoder shipped unchanged to all three cities, the single-model alternative the
+            per-city kit replaces. The joint row pools the raw scans of all three sites; it is not a
+            merge and is admissible only where the datasets can be pooled.
+            <sup>†</sup>All Concerto merging cells use the shared Concerto(O) base, so its Bhopal FT
+            baseline (68.10) differs from the general-purpose Concerto(L) (71.06).</figcaption>
+        </figure>
+
+        <figure id="res-access">
+          <div class="fig-panels">
+            <span class="panel-label">(a) carriageway-width classes W0–W4 (with WU / unmeasured)</span>
+            <img src="figures/paper/fig19a_class_share_W.svg" loading="lazy"
+                 alt="Width class shares W0 to W4 per city" />
+            <span class="panel-label">(b) binding-clearance classes H0–H3</span>
+            <img src="figures/paper/fig19b_class_share_H.svg" loading="lazy"
+                 alt="Binding clearance class shares H0 to H3 per city" />
+            <span class="panel-label">(c) accessibility classes A0–A3 (with AU)</span>
+            <img src="figures/paper/fig19c_class_share_A.svg" loading="lazy"
+                 alt="Accessibility class shares A0 to A3 per city" />
+          </div>
+          <div class="table-scroll">
+            <table class="paper-table" data-paper-table="tab_access"
+                   aria-label="Share of certifiable road length accessible per accessibility class and city">
+              <thead>
+                <tr><th>Accessible length (%)</th>
+                  <th>A1 <small>ambulance instance<br>3.0 / 3.5 m</small></th>
+                  <th>A2 <small>fire-truck instance<br>3.5 / 4.5 m</small></th>
+                  <th>A3 <small>aerial-appliance instance<br>3.5 / 5.0 m</small></th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Bhopal</td><td>72.9</td><td>40.1</td><td>27.9</td></tr>
+                <tr><td>Kerala</td><td>90.9</td><td>64.4</td><td class="tint">54.2</td></tr>
+                <tr><td>Chandigarh</td><td>85.0</td><td>58.3</td><td class="tint">53.4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption><b>Accessibility = width × clearance.</b>
+            <span class="paper-ref">Paper Figure 19 and Table 11.</span>
+            Standards-based class compositions per city over all measured stations: (a) width,
+            (b) binding clearance, (c) the fused accessibility class. The width axis binds in the
+            organic fabrics while the clearance axis binds on the planned grid, and A0+A1, the classes
+            below A2 that large apparatus cannot serve, hold 22–45% of stations at every site. The table gives
+            the share of certifiable road length on each routable main spine (Bhopal 10.6 km, Kerala 8.1 km, Chandigarh 17.2 km),
+            excluding branch arms whose width is uncertain; each class is headed by its vehicle
+            instance and width / height thresholds. Accessibility falls with vehicle size, and the
+            tinted cells mark the aerial-appliance comparison: Chandigarh (53.4%) is no higher than
+            Kerala (54.2%) despite carriageways nearly twice as wide.</figcaption>
+        </figure>
+
+        <figure id="res-evidence">
+          <img src="figures/paper/fig11_clearance_method.webp" loading="lazy"
+               alt="Four panels showing how overhead clearance is measured at one Bhopal station under a sagging wire: datum, gather box, 0.5 m floor, robust 5th-percentile read-off of 2.8 m" />
+          <div class="table-scroll">
+            <table class="paper-table evidence-table"
+                   aria-label="Clearance error against hand-measured ground truth by the number of responsible returns">
+              <thead>
+                <tr><th>Responsible returns behind a reading</th><th>1–5</th><th>5–10</th><th>10–20</th><th>20–50</th><th>50+</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Median clearance error vs hand-measured ground truth (29 stations)</td>
+                  <td>0.10 m</td><td>0.08 m</td><td>0.04 m</td><td>0.15 m</td><td>0.13 m</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <figcaption><b>Clearance evidence: every reading is auditable.</b>
+            <span class="paper-ref">Paper Figure 11, Sections 4.4–4.5 and 5.6.</span>
+            How clearance is measured at one Bhopal station under a sagging wire: (a) the road-plane
+            datum sets height zero; (b) overhead points are gathered inside a road-aligned box clipped
+            to the carriageway; (c) returns below the 0.5 m object floor are discarded; (d) the
+            clearance is the robust 5th percentile of what remains, 2.8 m here, so a single stray return
+            cannot set it. Every binding reading records its binding stream, its dominant point class
+            and an evidence count, the responsible-class returns within 0.15 m of the reading; a
+            reading taken from a fitted wire span with no sampled return records zero, which marks it
+            as model-driven. Checked against hand measurements at 29 stations, taken inside the pipeline's
+            own gather volume, the error does not grow as the evidence thins: the median absolute error is
+            0.04–0.15 m in every bin (table), and 23 of the 29 readings lie within 0.3 m. A fused verdict
+            still requires at least 20 responsible returns, as a conservative rule rather than a calibrated
+            one, and thinner readings are flagged rather than hidden. Where a lower wire only grazes the
+            gather box, the 5th percentile passes over it: four of the 29 verdicts read passable where the
+            measured clearance blocks, so the accessible shares are read as an upper estimate. Gating every
+            station removes the verdicts of 4,441 thin-evidence stations (about 4% of the network) yet
+            shifts the city-level share of accessible stations by only +0.1 to +1.1 percentage points. The
+            binding object follows urban form: wire binds at 79% of Bhopal's obstructed stations, high
+            vegetation at 84% of Chandigarh's.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =============== LIVE DEPLOYMENT (CESIUM) =================== -->
+    <!-- Pattern: reference/cesium-splat-streetview (Cesium + Vite + 3D Tiles).
+         src/cesium/CesiumApp.ts hydrates #cesium-map; layers = classified tiles + OSM
+         accessibility network + precomputed routes (public/tiles, public/routes). -->
+    <section id="deployment" class="prose wide">
+      <h2>Live deployment: accessibility map &amp; routing</h2>
+      <p class="muted">The map opens on Bhopal in 🚑 <i>Route</i> mode, on the example from the paper's
+        graphical abstract: the shortest path (388&nbsp;m) is blocked for an ambulance, so the
+        accessible route detours (720&nbsp;m). Click two points for another pair, or pick another
+        city. Also: 🧭 OSM&nbsp;↔&nbsp;LiDAR alignment · <i>Categorize</i> colours the network by
+        W / H / A class.</p>
+      <!-- deploy-shell is the fullscreen element: toolbar + map + cards + legend all ride along. -->
+      <div id="deploy-shell" class="deploy-shell">
+      <div class="map-toolbar">
+        <label>City
+          <select id="city-select"><option value="india">India — overview</option>
+            <option value="bhopal" selected>Bhopal</option>
+            <option value="kerala">Kerala</option><option value="chandigarh">Chandigarh</option></select>
+        </label>
+        <button id="view-toggle">2D / 3D</button>
+        <button id="basemap-toggle">🛰 Satellite</button>
+        <button id="align-toggle" title="Overlay the OSM road mesh and the RTK LiDAR centerlines to check their shift">🧭 OSM ↔ LiDAR</button>
+        <label id="align-path-label" class="is-hidden" title="Show one survey path's LiDAR centerlines against the OSM mesh">Path
+          <select id="align-path-select" disabled></select>
+        </label>
+        <label id="cat-label" class="is-hidden" title="Colour the LiDAR centerline by standards class">Categorize
+          <select id="cat-select" disabled>
+            <option value="off">Off (alignment)</option>
+            <option value="width">Width W0–W4 · WU</option>
+            <option value="clearance">Clearance H0–H3</option>
+            <option value="accessibility">Accessibility A0–A3</option>
+          </select>
+        </label>
+        <button id="refined-toggle" class="is-hidden" title="Overlay the multi-drive FUSED width network (Bhopal): the 8 survey drives conflated into ONE connected single-line graph, edges coloured by W-class from the min-safe fused width (closer repaired). Click an edge for its binding width + redundancy.">🧪 Refined width</button>
+        <button id="route-toggle" title="Click an origin then a destination on the map to route between them, accessibility-aware">🚑 Route</button>
+        <label id="route-class-label" class="is-hidden">Class
+          <select id="route-class-select" disabled>
+            <option value="A1">A1 · ambulance (instance)</option>
+            <option value="A2">A2 · fire truck (instance)</option>
+            <option value="A3">A3 · aerial appliance (instance)</option>
+          </select>
+        </label>
+        <label id="route-gate-label" class="is-hidden" title="Which measured dimension gates the route: the full A-class (width × clearance), width only, or overhead clearance only (wire / structure = permanent, vegetation = prunable)">Gate
+          <select id="route-gate-select" disabled>
+            <option value="accessibility">Accessibility (W × H)</option>
+            <option value="width">Width only</option>
+            <option value="clearance">Clearance only</option>
+          </select>
+        </label>
+        <label id="route-algo-label" class="is-hidden">Algorithm
+          <select id="route-algo-select" disabled>
+            <option value="dijkstra">Dijkstra</option>
+            <option value="astar">A*</option>
+          </select>
+        </label>
+        <button id="route-clear" class="is-hidden">Clear pick</button>
+        <span class="align-legend is-hidden" id="cat-legend" aria-label="Categorization legend"></span>
+        <span class="align-legend is-hidden" id="align-legend" aria-label="Alignment layers">
+          <span id="align-line-legend"><!-- alignment reference lines; hidden while a class mode is active -->
+            <span class="al"><span class="swatch" style="background:#ff3caf"></span>OSM (raw)</span>
+            <span class="al"><span class="swatch" style="background:#ffd400"></span>OSM (aligned)</span>
+            <span class="al"><span class="swatch" style="background:#00e5ff"></span>LiDAR centerline</span>
+            <span class="al"><span class="swatch" style="background:#a7ffeb"></span>Road edge</span>
+          </span>
+          <span class="al"><span class="dot" style="background:#ffb300"></span>T/Y</span>
+          <span class="al"><span class="dot" style="background:#e53935"></span>+</span>
+          <span class="al"><span class="dot" style="background:#8e24aa"></span>X</span>
+          <span class="al"><span class="dot" style="background:#00c853"></span>Rotary</span>
+        </span>
+        <button id="cloud-color-toggle">🎨 Class colors</button>
+        <button id="map-fullscreen" title="Full-screen map (Esc exits)">⛶ Full screen</button>
+      </div>
+      <div class="map-wrap">
+        <div id="cesium-map" class="map-mount"></div>
+        <!-- Info flash card: shown on click of a categorization segment / junction (src/main.ts). -->
+        <div id="map-card" class="map-card is-hidden" role="dialog" aria-label="Feature info"></div>
+        <!-- Live click-to-route stats: origin/destination lengths, detour, algorithm (src/main.ts). -->
+        <div id="route-card" class="map-card route-card is-hidden" role="dialog" aria-label="Route stats"></div>
+      </div>
+      <!-- 12-class segmentation legend; populated from SEG_CLASSES in src/main.ts. -->
+      <div id="class-legend" class="class-legend" aria-label="Point-cloud class legend"></div>
+      </div><!-- /deploy-shell -->
+    </section>
+
+    <!-- ====================== SCALABILITY ========================= -->
+    <section id="scalability" class="prose wide">
+      <h2>Low-cost scalability: street-view uplift</h2>
+      <p class="muted">The same pipeline runs on street-view imagery uplifted to metric 3D,
+        validated against co-located Bhopal LiDAR. Pick a view below to inspect its uplift.</p>
+      <figure><img src="figures/uplift_process.png" loading="lazy" alt="Street-view to 3D uplift process" />
+        <figcaption>Direct multi-view crops → SAM3 sky removal → metric 3D → Utonia segmentation.
+          The interactive artifacts use no panorama.</figcaption></figure>
+      <div id="uplift-explorer" class="uplift-explorer" aria-label="Interactive street-view uplift examples">
+        <div class="uplift-empty">Loading interactive uplift examples…</div>
+      </div>
+    </section>
+
+    <!-- ========================= BIBTEX ========================== -->
+    <section id="bibtex" class="prose wide">
+      <h2>BibTeX</h2>
+      <pre><code>@article{anonymous2026overhead,
+  title   = {Overhead clearance rather than carriageway width as the limit on the largest emergency vehicles:
+             multi-city mapping from mobile laser scanning by model merging},
+  author  = {Anonymous},
+  year    = {2026}
+}</code></pre>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Anonymized version prepared for double-blind peer review. Author and code/data links
+      will be added after acceptance.</p>
+  </footer>
+
+</body>
+</html>
