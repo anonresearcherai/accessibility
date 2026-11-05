@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 860" role="img"
+     aria-label="Methodology overview: raw LiDAR to segmentation to accessibility pipeline to routing">
+  <defs>
+    <marker id="mo-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5a6675"/>
+    </marker>
+  </defs>
+  <style>
+    text{font-family:Helvetica,Arial,'DejaVu Sans',sans-serif}
+    .pt{fill:#f8fafc;stroke:#cfd8e3;stroke-width:1.6}
+    .pt3{fill:#f0f6ff;stroke:#b7d0f5;stroke-width:1.8}
+    .lane{fill:#ffffff;stroke:#dbe3ec;stroke-width:1.4}
+    .nd{fill:#ffffff;stroke:#c8d3df;stroke-width:1.2}
+    .fuse{fill:#e8f1fd;stroke:#1f6feb;stroke-width:2}
+    .kick{font-size:12px;font-weight:600;fill:#5a6675;letter-spacing:.12em}
+    .ttl{font-size:19px;font-weight:700;fill:#1c2430}
+    .sub{font-size:13.5px;fill:#48535f}
+    .lt{font-size:15.5px;font-weight:700;fill:#1c2430}
+    .nt{font-size:14.5px;font-weight:600;fill:#1c2430}
+    .ns{font-size:12.5px;fill:#5a6675}
+    .ft{font-size:16px;font-weight:700;fill:#123a6b}
+    .fs{font-size:13px;fill:#3b5b83}
+    .ar{stroke:#5a6675;stroke-width:1.8;fill:none;marker-end:url(#mo-arr)}
+    .bus{stroke:#5a6675;stroke-width:1.8;fill:none}
+  </style>
+
+  <!-- PART 1 · INPUT -->
+  <rect class="pt" x="150" y="16" width="700" height="92" rx="12"/>
+  <text class="kick" x="172" y="42">PART 1 · INPUT</text>
+  <text class="ttl" x="172" y="68">Raw mobile-LiDAR point clouds</text>
+  <text class="sub" x="172" y="92">Bhopal · Kerala · Chandigarh — 174 survey paths, 46 km · RGB, intensity, normals</text>
+  <path class="ar" d="M500,110 L500,136"/>
+
+  <!-- PART 2 · SEMANTICS -->
+  <rect class="pt" x="150" y="140" width="700" height="106" rx="12"/>
+  <text class="kick" x="172" y="166">PART 2 · SEMANTICS</text>
+  <text class="ttl" x="172" y="192">3D semantic segmentation</text>
+  <text class="sub" x="172" y="215">PTv3-family 3D foundation models — 12-class urban schema</text>
+  <text class="sub" x="172" y="234">deployment swaps GT labels for predictions (per-city 12c / 21c or merged); geometry unchanged</text>
+  <path class="ar" d="M500,248 L500,274"/>
+
+  <!-- PART 3 · ACCESSIBILITY PIPELINE -->
+  <rect class="pt3" x="36" y="278" width="928" height="426" rx="14"/>
+  <text class="kick" x="58" y="304">PART 3 · ACCESSIBILITY PIPELINE — PER-STATION, TWO INDEPENDENT LANES</text>
+
+  <!-- width lane -->
+  <rect class="lane" x="56" y="318" width="440" height="282" rx="10"/>
+  <text class="lt" x="72" y="342">Carriageway width — horizontal</text>
+  <rect class="nd" x="72" y="354" width="408" height="48" rx="8"/>
+  <text class="nt" x="86" y="374">1 · Clean (deployment only)</text>
+  <text class="ns" x="86" y="393">detach-guarded denoising; survey GT stays raw</text>
+  <path class="ar" d="M276,402 L276,414"/>
+  <rect class="nd" x="72" y="416" width="408" height="48" rx="8"/>
+  <text class="nt" x="86" y="436">2 · Class-aware boundary</text>
+  <text class="ns" x="86" y="455">&#945;-hull + non-drivable class holes + median split</text>
+  <path class="ar" d="M276,464 L276,476"/>
+  <rect class="nd" x="72" y="478" width="408" height="48" rx="8"/>
+  <text class="nt" x="86" y="498">3 · Centerline + typed junctions</text>
+  <text class="ns" x="86" y="517">orientation field; main spine vs branch arms</text>
+  <path class="ar" d="M276,526 L276,538"/>
+  <rect class="nd" x="72" y="540" width="408" height="48" rx="8"/>
+  <text class="nt" x="86" y="560">4 · One-ruler width &#8594; W0&#8211;W4 · WU</text>
+  <text class="ns" x="86" y="579">occupancy-bin robust cross-section; branch = WU</text>
+
+  <!-- clearance lane -->
+  <rect class="lane" x="520" y="318" width="440" height="282" rx="10"/>
+  <text class="lt" x="536" y="342">Overhead clearance — vertical</text>
+  <rect class="nd" x="536" y="354" width="408" height="48" rx="8"/>
+  <text class="nt" x="550" y="374">1 · Road-surface datum</text>
+  <text class="ns" x="550" y="393">local plane fit per station</text>
+  <path class="ar" d="M740,402 L740,414"/>
+  <rect class="nd" x="536" y="416" width="408" height="48" rx="8"/>
+  <text class="nt" x="550" y="436">2 · Streams + class policy</text>
+  <text class="ns" x="550" y="455">wire · vegetation · structure · other</text>
+  <path class="ar" d="M740,464 L740,476"/>
+  <rect class="nd" x="536" y="478" width="408" height="48" rx="8"/>
+  <text class="nt" x="550" y="498">3 · Boundary-clipped gather</text>
+  <text class="ns" x="550" y="517">box per transect; cylinder per junction</text>
+  <path class="ar" d="M740,526 L740,538"/>
+  <rect class="nd" x="536" y="540" width="408" height="48" rx="8"/>
+  <text class="nt" x="550" y="560">4 · Robust reading &#8594; H0&#8211;H3</text>
+  <text class="ns" x="550" y="579">5th percentile + wire sag fit; bind_n recorded</text>
+
+  <!-- orthogonal collector bus: lanes drop straight down, one arrow enters the fuse -->
+  <path class="bus" d="M276,600 L276,618"/>
+  <path class="bus" d="M740,600 L740,618"/>
+  <path class="bus" d="M276,618 L740,618"/>
+  <path class="ar" d="M500,618 L500,632"/>
+  <rect class="fuse" x="250" y="636" width="500" height="58" rx="10"/>
+  <text class="ft" x="500" y="660" text-anchor="middle">A = W &#215; H &#8594; A0 · A1 · A2 · A3 · AU</text>
+  <text class="fs" x="500" y="680" text-anchor="middle">AU = uncertain width — unless H0: a measured overhang stays A0</text>
+  <path class="ar" d="M500,704 L500,730"/>
+
+  <!-- PART 4 · ROUTING -->
+  <rect class="pt" x="150" y="734" width="700" height="110" rx="12"/>
+  <text class="kick" x="172" y="760">PART 4 · ROUTING</text>
+  <text class="ttl" x="172" y="786">Accessibility-aware routing on the main spine</text>
+  <text class="sub" x="172" y="809">graph = main-spine edges only — WU / branch sections never route (share reported)</text>
+  <text class="sub" x="172" y="828">per-vehicle instance costs (ambulance / fire / aerial as W&#215;H levels) &#8594; shortest vs accessible + detours</text>
+</svg>
